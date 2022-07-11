@@ -13,6 +13,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -45,10 +46,15 @@ func podIsTerminating(pod *v1.Pod) bool {
 
 func monitorBackends() chan struct{} {
 	config, err := clientcmd.BuildConfigFromFlags("", "/root/.kube/config")
+	spew.Dump(config)
 	if err != nil {
 		glog.Errorln(err)
 	}
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := kubernetes.NewForConfig(&rest.Config{
+		Host:            os.Getenv("K8S_MASTER_HOST"),
+		BearerToken:     os.Getenv("K8S_MASTER_TOKEN"),
+		TLSClientConfig: rest.TLSClientConfig{Insecure: true},
+	})
 	if err != nil {
 		glog.Errorln(err)
 	}
