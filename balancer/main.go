@@ -15,7 +15,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 var servers = sync.Map{}
@@ -45,11 +44,6 @@ func podIsTerminating(pod *v1.Pod) bool {
 }
 
 func monitorBackends() chan struct{} {
-	config, err := clientcmd.BuildConfigFromFlags("", "/root/.kube/config")
-	spew.Dump(config)
-	if err != nil {
-		glog.Errorln(err)
-	}
 	clientset, err := kubernetes.NewForConfig(&rest.Config{
 		Host:            os.Getenv("K8S_MASTER_HOST"),
 		BearerToken:     os.Getenv("K8S_MASTER_TOKEN"),
