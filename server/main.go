@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -40,9 +41,18 @@ func main() {
 
 	for {
 		n, addr, err := connection.ReadFromUDP(buffer)
-		fmt.Println("-> ", string(buffer[0:n-1]))
+		fmt.Println("-> ", string(buffer[0:n]))
 
-		_, err = connection.WriteToUDP([]byte(fmt.Sprint(online, "|", hostname)), addr)
+		reply := strings.Split(string(buffer[0:n]), "|")
+		clientUUID := reply[0]
+		serverHostname := reply[1]
+
+		if serverHostname != "" && serverHostname != hostname {
+			fmt.Println("Received a packet that isn't for this server. Will not reply")
+			continue
+		}
+
+		_, err = connection.WriteToUDP([]byte(fmt.Sprint(clientUUID, "|", online, "|", hostname)), addr)
 		if err != nil {
 			fmt.Println(err)
 			return

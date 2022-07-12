@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -58,7 +59,7 @@ func monitorBackends() chan struct{} {
 		string(v1.ResourcePods),
 		"shutdownpoc",
 		func(opts *metav1.ListOptions) {
-			opts.LabelSelector = "app=shutdownpoc"
+			opts.LabelSelector = "app=server"
 		},
 	)
 	_, controller := cache.NewInformer( // also take a look at NewSharedIndexInformer
@@ -117,12 +118,16 @@ func runBalancer() {
 	conns := &sync.Map{}
 
 	for {
-		// The code below is extremelly naive and will not work for more than one client
-		// Still, it will allow us to prove our concept with a single connection
-		// That means, this should not be taken as-is when doing the real implementation
 		n, addr, err := connection.ReadFromUDP(buffer)
+
+		pkt := strings.Split(string(buffer[0:n]), "|")
+		pktUUID := pkt[0]
+
+		k := pktUUID + "-" + addr.String()
+		fmt.Println("Bridging key", k)
+
 		var bridgeTo *net.UDPAddr
-		if v, found := conns.Load(addr.String()); found {
+		if v, found := conns.Load(k); found {
 			bridgeTo = v.(*net.UDPAddr)
 		} else {
 			servers.Range(func(key, value interface{}) bool {
@@ -135,8 +140,8 @@ func runBalancer() {
 						fmt.Println(err)
 						return true
 					}
-					conns.Store(addr.String(), bridgeTo)
-					conns.Store(bridgeTo.String(), addr)
+					conns.Store(k, bridgeTo)
+					conns.Store(pktUUID+"-"+bridgeTo.String(), addr)
 					return false
 				}
 				return true

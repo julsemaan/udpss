@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func main() {
@@ -29,6 +31,7 @@ func main() {
 	shutdown := false
 	shutdownTicks := 5
 	serverHostname := ""
+	clientUUID := uuid.New().String()
 	for {
 		if shutdown {
 			shutdownTicks -= 1
@@ -38,7 +41,7 @@ func main() {
 			}
 		}
 
-		_, err = c.Write([]byte(fmt.Sprintf("ping|%s\n", serverHostname)))
+		_, err = c.Write([]byte(fmt.Sprintf("%s|%s", clientUUID, serverHostname)))
 
 		if err != nil {
 			fmt.Println(err)
@@ -53,15 +56,21 @@ func main() {
 		}
 
 		reply := strings.Split(string(buffer[0:n]), "|")
-		serverReady := (reply[0] == "true")
-		serverHostname = reply[1]
+		replyUUID := reply[0]
+		serverReady := (reply[1] == "true")
+		serverHostname = reply[2]
+
+		if clientUUID != replyUUID {
+			fmt.Println("Received a UUID that doesn't match the one we sent")
+			os.Exit(1)
+		}
 
 		if !serverReady && !shutdown {
 			fmt.Println("Server is shutting down, doing", shutdownTicks, "last ticks before stopping the client")
 			shutdown = true
 		}
 
-		fmt.Printf("ready:%t, hostname:%s\n", serverReady, serverHostname)
+		fmt.Printf("uuid:%s, ready:%t, hostname:%s\n", replyUUID, serverReady, serverHostname)
 
 		time.Sleep(1 * time.Second)
 	}
